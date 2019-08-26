@@ -1,5 +1,7 @@
 
 
+from collections import deque
+
 from multiprocessing import RawArray
 from multiprocessing import Lock as mpLock
 from multiprocessing import Process
@@ -15,21 +17,38 @@ import cv2
 from trtis_client import TrtisClient
 
 
-class Agent(Process):
+def infer(trtis_client, state):
+    # state is a list of ndarray.
+    gray_state = [cv2.cvtColor(s, cv2.COLOR_RGB2GRAY) for s in state]
+    dqn_state = [cv2.resize(s, (84, 84), interpolation=cv2.INTER_AREA) \
+                 for s in gray_state]
+    input_tensor = np.array(dqn_state).astype(np.float32) / 255.
+
+    q_value = trtis_client.infer(input_tensor)
+    return np.argmax(q_value)
+
+
+def show_trtis_client_stats(trtis_client):
+    infer_stats = trtis_client.get_time_stats()
+    print('TRTIS inference request time[sec.]: mean, median = ({}, {})'.format(
+        infer_stats['infer_request'][0], infer_stats['infer_request'][1]))
+    print('TRTIS whole inference time[sec.]: mean, median = ({}, {})'.format(
+        infer_stats['whole_inference'][0], infer_stats['whole_inference'][1]))
+
+
+class AsyncAgent(Process):
     def __init__(self, 
                  host='localhost',
                  port=8001,
                  model='atari',
-                 n_actions=4,
                  observation_shape=None,
                  n_stack_frames=4,
                  wait_interval_msec=30,
                  **kwargs):
-        super(Agent, self).__init__(**kwargs)
+        super(AsyncAgent, self).__init__(**kwargs)
 
         self._wait_interval_sec = wait_interval_msec / 1000.0
 
-        self._n_actions = n_actions
         self._observation_shape = observation_shape
         n_bytes = np.prod(observation_shape)
 
@@ -97,22 +116,49 @@ class Agent(Process):
                 time.sleep(self._wait_interval_sec)
             else:
                 # Make a tensor to be sent to TRTIS.
-                gray_state = [cv2.cvtColor(s, cv2.COLOR_RGB2GRAY) for s in state]
-                dqn_state = [cv2.resize(s, (84, 84), interpolation=cv2.INTER_AREA) for s in gray_state]
-                input_tensor = np.array(dqn_state).astype(np.float32) / 255.
-
-                q_value = self._trtis_client.infer(input_tensor)
-                action = np.argmax(q_value)
-
+                action = infer(self._trtis_client, state)
                 self._put_action(action)
         self._trtis_client.shutdown()
 
         # Show stats.
-        infer_stats = self._trtis_client.get_time_stats()
-        print('TRTIS inference request time[sec.]: mean, median = ({}, {})'.format(
-            infer_stats['infer_request'][0], infer_stats['infer_request'][1]))
-        print('TRTIS whole inference time[sec.]: mean, median = ({}, {})'.format(
-            infer_stats['whole_inference'][0], infer_stats['whole_inference'][1]))
+        show_trtis_client_stats(self._trtis_client)
 
     def _is_running(self):
         return not self._stop_signal.value
+
+
+class SyncAgent(object):
+    def __init__(self,
+                 host='localhost',
+                 port=8001,
+                 model='atari',
+                 n_stack_frames=4):
+        self._state = deque([], maxlen=n_stack_frames)
+        self._action = 0
+
+        self._trtis_client = TrtisClient(
+            host=host,
+            port=port,
+            model_name=model)
+
+    def start(self):
+        self._trtis_client.setup()
+
+    def stop(self):
+        # Show stats.
+        show_trtis_client_stats(self._trtis_client)
+        self._trtis_client.shutdown()
+
+    def join(self):
+        pass
+
+    def get_action(self):
+        return self._action
+
+    def put_state(self, state):
+        self._state.append(state)
+        if len(self._state) < self._state.maxlen:
+            # Need to wait.
+            return
+        state = list(self._state)
+        self._action = infer(self._trtis_client, state)

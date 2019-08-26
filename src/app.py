@@ -13,7 +13,7 @@ import pygame
 import chainerrl
 from chainerrl.wrappers import atari_wrappers
 
-from agent import Agent
+from agent import AsyncAgent, SyncAgent
 
 
 def rotate_and_flip_screen(img):
@@ -33,7 +33,8 @@ class App(object):
                  port=8001,
                  model='atari',
                  env_name='BreakoutNoFrameskip-v4',
-                 n_stack_frames=4):
+                 n_stack_frames=4,
+                 sync=False):
         self._running = False
         self._display_surf = None
 
@@ -48,13 +49,21 @@ class App(object):
         self.size = self.width, self.height = _obs_shape[1], _obs_shape[0]
         self.n_channels = _obs_shape[2]
 
-        self._agent = Agent(
-            host=host,
-            port=port,
-            model=model,
-            n_actions=self._env.action_space.n,
-            observation_shape=_obs_shape,
-            n_stack_frames=n_stack_frames)
+        self._sync = sync
+
+        if self._sync:
+            self._agent = SyncAgent(
+                host=host,
+                port=port,
+                model=model,
+                n_stack_frames=n_stack_frames)
+        else:
+            self._agent = AsyncAgent(
+                host=host,
+                port=port,
+                model=model,
+                observation_shape=_obs_shape,
+                n_stack_frames=n_stack_frames)
         self._action = 0
 
         self._recent_obs = np.zeros(
@@ -141,11 +150,16 @@ def main():
                         type=str,
                         default='atari',
                         help='Name of RL model already deployed.')
+    parser.add_argument('--sync',
+                        default=False,
+                        action='store_true',
+                        help='Run inference synchronous mode.')
     args = parser.parse_args()
 
     app = App(host=args.host,
               port=args.port,
-              model=args.model)
+              model=args.model,
+              sync=args.sync)
     app.on_execute()
 
 
