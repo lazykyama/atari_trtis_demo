@@ -66,10 +66,6 @@ class App(object):
                 n_stack_frames=n_stack_frames)
         self._action = 0
 
-        self._recent_obs = np.zeros(
-            (2,) + self._env.observation_space.shape,
-            dtype=np.uint8)
-
     def on_init(self):
         pygame.init()
         self._display_surf = pygame.display.set_mode(
