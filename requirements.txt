@@ -1,0 +1,8 @@
+atari-py==0.2.6
+chainer==6.3.0
+chainerrl==0.7.0
+grpcio==1.23.0
+grpcio-tools==1.23.0
+gym==0.14.0
+opencv-python==4.1.0.25
+pygame==1.9.6
