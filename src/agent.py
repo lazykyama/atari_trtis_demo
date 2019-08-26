@@ -156,6 +156,8 @@ class SyncAgent(object):
         return self._action
 
     def put_state(self, state):
+        # Note: should devide this code to 2 parts:
+        # putting state part and do inference part...
         self._state.append(state)
         if len(self._state) < self._state.maxlen:
             # Need to wait.
