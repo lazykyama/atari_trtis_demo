@@ -221,6 +221,8 @@ ready_state: SERVER_READY
 2019-08-27 11:53:07 (61.5 MB/s) - written to stdout [1677/1677]
 ```
 
+Note that please read a [blog post (written in Japanese)](https://medium.com/google-cloud-jp/building-high-performance-online-prediction-system-on-gcp-12b57ca44284) if you want to deploy this to Google Cloud Platform.
+
 ### Setup a client dependencies
 
 We have only 2 steps to setup the client apps.
