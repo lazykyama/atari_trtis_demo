@@ -275,3 +275,18 @@ The following image is an example of running application.
 `--sync` option means that this application sends all requests to the server and waits for all responses.
 So, if the network latency is long, sometimes, the rendering might be blocked.
 At the test, if the latency is around 10-20 msec., the rendering is almost smooth.
+
+If you don't set `--sync` option, the application sends requests asynchronously.
+Therefore, in this setting, the score should be decreased because of delayed response.
+
+### To run a standalone version for debug and etc
+
+The scripts for standalone version are in the directory, `standalone_src/`.
+You can execute this application by following the steps below.
+
+```shell
+$ cd /path/to/client/workspace/atari_trtis_demo/standalone_src/
+$ mkdir ./model/
+$ scp ${SERVER}:/path/to/host/workspace/atari_trtis_demo/chainerrl/examples/atari/reproduction/dqn/results/20190826T143334.743497/best/* ./model/
+$ python app.py --modelpath ./model/
+```
