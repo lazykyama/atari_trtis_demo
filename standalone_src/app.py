@@ -6,6 +6,7 @@ import sys
 import time
 
 import numpy as np
+import cv2
 
 import pygame
 
@@ -30,7 +31,8 @@ class App(object):
     def __init__(self,
                  modelpath=None,
                  env_name='BreakoutNoFrameskip-v4',
-                 n_stack_frames=4):
+                 n_stack_frames=4,
+                 rendering_scale=None):
         self._running = False
         self._display_surf = None
 
@@ -42,7 +44,14 @@ class App(object):
             self._env.reset())
         self._done = False
 
-        self.size = self.width, self.height = _obs_shape[1], _obs_shape[0]
+        if rendering_scale is not None:
+            self.width = int(rendering_scale * _obs_shape[1])
+            self.height = int(rendering_scale * _obs_shape[0])
+            self.size = self.width, self.height
+        else:
+            self.width, self.height = _obs_shape[1], _obs_shape[0]
+            self.size = self.width, self.height
+        self._rendering_scale = rendering_scale
         self.n_channels = _obs_shape[2]
 
         self._agent = Agent(modelpath,
@@ -74,7 +83,13 @@ class App(object):
 
     def on_render(self):
         arr = pygame.surfarray.pixels3d(self._display_surf)
-        arr[:] = self._screen_img[:]
+        if self._rendering_scale is not None:
+            render_img = cv2.resize(self._screen_img,
+                                    (self.size[1], self.size[0]),
+                                    interpolation=cv2.INTER_AREA)
+        else:
+            render_img = self._screen_img
+        arr[:] = render_img[:]
         pygame.display.update()
 
     def on_cleanup(self):
@@ -116,9 +131,14 @@ def main():
                         type=str,
                         required=True,
                         help='Model directory path.')
+    parser.add_argument('--rendering_scale',
+                        type=float,
+                        default=None,
+                        help='Screen rendering scale.')
     args = parser.parse_args()
 
-    app = App(modelpath=args.modelpath)
+    app = App(modelpath=args.modelpath,
+              rendering_scale=args.rendering_scale)
     app.on_execute()
 
 

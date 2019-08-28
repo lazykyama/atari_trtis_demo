@@ -7,6 +7,7 @@ import sys
 import time
 
 import numpy as np
+import cv2
 
 import pygame
 
@@ -34,6 +35,7 @@ class App(object):
                  model='atari',
                  env_name='BreakoutNoFrameskip-v4',
                  n_stack_frames=4,
+                 rendering_scale=None,
                  sync=False):
         self._running = False
         self._display_surf = None
@@ -46,7 +48,14 @@ class App(object):
             self._env.reset())
         self._done = False
 
-        self.size = self.width, self.height = _obs_shape[1], _obs_shape[0]
+        if rendering_scale is not None:
+            self.width = int(rendering_scale * _obs_shape[1])
+            self.height = int(rendering_scale * _obs_shape[0])
+            self.size = self.width, self.height
+        else:
+            self.width, self.height = _obs_shape[1], _obs_shape[0]
+            self.size = self.width, self.height
+        self._rendering_scale = rendering_scale
         self.n_channels = _obs_shape[2]
 
         self._sync = sync
@@ -90,7 +99,13 @@ class App(object):
 
     def on_render(self):
         arr = pygame.surfarray.pixels3d(self._display_surf)
-        arr[:] = self._screen_img[:]
+        if self._rendering_scale is not None:
+            render_img = cv2.resize(self._screen_img,
+                                    (self.size[1], self.size[0]),
+                                    interpolation=cv2.INTER_AREA)
+        else:
+            render_img = self._screen_img
+        arr[:] = render_img[:]
         pygame.display.update()
 
     def on_cleanup(self):
@@ -146,6 +161,10 @@ def main():
                         type=str,
                         default='atari',
                         help='Name of RL model already deployed.')
+    parser.add_argument('--rendering_scale',
+                        type=float,
+                        default=None,
+                        help='Screen rendering scale.')
     parser.add_argument('--sync',
                         default=False,
                         action='store_true',
@@ -155,6 +174,7 @@ def main():
     app = App(host=args.host,
               port=args.port,
               model=args.model,
+              rendering_scale=args.rendering_scale,
               sync=args.sync)
     app.on_execute()
 
