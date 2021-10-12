@@ -3,6 +3,6 @@ chainer==6.3.0
 chainerrl==0.7.0
 grpcio==1.23.0
 grpcio-tools==1.23.0
-opencv-python==4.1.0.25
+opencv-python==4.2.0.32
 protobuf==3.7.1
 pygame==1.9.6
